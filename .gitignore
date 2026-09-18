@@ -1,0 +1,13 @@
+.build/
+.swiftpm/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+venv/
+.venv/
+.DS_Store
+
+# 구버전 (Python) 스크립트 — 참고용
+legacy/
