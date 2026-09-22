@@ -4,7 +4,7 @@
 #   ./scripts/release.sh 0.2.0
 #
 # 전제: gh 또는 git 으로 github.com/kube-guy/ai-usage-bar 와
-#       github.com/kube-guy/homebrew-ai-usage-bar 에 푸시할 수 있어야 한다.
+#       github.com/kube-guy/homebrew-kit 에 푸시할 수 있어야 한다.
 set -euo pipefail
 
 VERSION="${1:-}"
@@ -14,7 +14,7 @@ if [[ -z "$VERSION" ]]; then
 fi
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-TAP_DIR="${TAP_DIR:-$HOME/homebrew-ai-usage-bar}"
+TAP_DIR="${TAP_DIR:-$HOME/homebrew-kit}"
 FORMULA="$TAP_DIR/Formula/ai-usage-bar.rb"
 TARBALL_URL="https://github.com/kube-guy/ai-usage-bar/archive/refs/tags/v${VERSION}.tar.gz"
 

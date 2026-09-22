@@ -14,13 +14,13 @@ Swift 네이티브 앱이라 런타임 의존성이 없습니다 — 파이썬�
 ## 설치
 
 ```sh
-brew tap kube-guy/ai-usage-bar
-brew trust --formula kube-guy/ai-usage-bar/ai-usage-bar
+brew tap kube-guy/kit
+brew trust --formula kube-guy/kit/ai-usage-bar
 brew install ai-usage-bar
 ```
 
 Homebrew 7.0 부터는 서드파티 tap 의 formula 를 쓰려면 `brew trust` 로 한 번 신뢰를 표시해야 합니다.
-(`brew trust kube-guy/ai-usage-bar` 로 tap 전체를 신뢰할 수도 있지만, 위처럼 formula 하나만 신뢰하는 쪽이 좁습니다.)
+(`brew trust kube-guy/kit` 로 tap 전체를 신뢰할 수도 있지만, 위처럼 formula 하나만 신뢰하는 쪽이 좁습니다.)
 
 ## 로그인
 

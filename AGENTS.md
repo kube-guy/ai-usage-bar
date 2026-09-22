@@ -45,7 +45,7 @@ swift build -c release
 ./scripts/release.sh 0.3.0
 ```
 
-버전 갱신 → 빌드 확인 → 태그 푸시 → tap 저장소(`~/homebrew-ai-usage-bar`)의
+버전 갱신 → 빌드 확인 → 태그 푸시 → tap 저장소(`~/homebrew-kit`)의
 formula `url`/`sha256` 갱신까지 처리한다. 릴리스 노트는 `gh release create` 로 따로 붙인다.
 
 ## 구조 메모
