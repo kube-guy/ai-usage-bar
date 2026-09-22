@@ -187,7 +187,7 @@ struct ClaudeProvider: UsageProvider {
         let resetsAt = ISODate.parse(fiveHour.string("resets_at"))
         return UsageResult(
             sessionPercent: sessionPct,
-            sessionRemaining: remainingFraction(resetsAt: resetsAt, windowSeconds: sessionWindowSeconds),
+            sessionElapsed: elapsedFraction(resetsAt: resetsAt, windowSeconds: sessionWindowSeconds),
             rows: rows)
     }
 }

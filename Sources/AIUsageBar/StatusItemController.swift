@@ -82,7 +82,7 @@ final class StatusItemController {
         lastResult = result
         button.image = RingIcon.make(
             pct: result.sessionPercent,
-            remaining: result.sessionRemaining,
+            elapsed: result.sessionElapsed,
             letter: provider.letter,
             isDark: isDarkMenuBar)
         button.imagePosition = .imageLeading

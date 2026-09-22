@@ -1,6 +1,6 @@
 import AppKit
 
-let version = "0.3.0"
+let version = "0.4.0"
 
 // MARK: - 명령줄 인자
 
@@ -66,10 +66,10 @@ if dump {
         do {
             let result = try source.fetch()
             print("  세션 사용률: \(Format.percent(result.sessionPercent))")
-            if let remaining = result.sessionRemaining {
-                print("  리셋까지 남은 창 비율: \(Format.percent(remaining * 100))  (바깥 링)")
+            if let elapsed = result.sessionElapsed {
+                print("  세션 창 경과: \(Format.percent(elapsed * 100))  (바깥 링)")
             } else {
-                print("  리셋까지 남은 창 비율: 알 수 없음 (바깥 링 미표시)")
+                print("  세션 창 경과: 알 수 없음 (바깥 링 미표시)")
             }
             for row in result.rows {
                 switch row {

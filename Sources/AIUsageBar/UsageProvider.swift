@@ -23,17 +23,19 @@ enum MenuRow {
 struct UsageResult {
     /// 메뉴바 링에 표시할 5시간 세션 사용률.
     let sessionPercent: Double
-    /// 세션 한도가 리셋되기까지 남은 비율 0~1. 창 길이를 알 수 없으면 nil.
-    let sessionRemaining: Double?
+    /// 현재 세션 창이 얼마나 지났는지 0~1. 창 길이를 알 수 없으면 nil.
+    /// 안쪽 링(사용률)과 같은 방향으로 차오르도록 '남은' 이 아니라 '지난' 비율이다.
+    let sessionElapsed: Double?
     let rows: [MenuRow]
 }
 
-/// 리셋 시각과 창 길이로 남은 비율을 구한다.
-func remainingFraction(resetsAt: Date?, windowSeconds: Double) -> Double? {
+/// 리셋 시각과 창 길이로 '창이 얼마나 지났는지'를 구한다.
+/// 리셋 직후 0 에서 시작해 리셋 직전 1 이 된다.
+func elapsedFraction(resetsAt: Date?, windowSeconds: Double) -> Double? {
     guard let resetsAt, windowSeconds > 0 else { return nil }
     let remaining = resetsAt.timeIntervalSinceNow
     guard remaining.isFinite else { return nil }
-    return min(max(remaining / windowSeconds, 0), 1)
+    return min(max(1 - remaining / windowSeconds, 0), 1)
 }
 
 protocol UsageProvider {

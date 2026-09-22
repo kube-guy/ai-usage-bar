@@ -2,8 +2,11 @@ import AppKit
 
 /// 메뉴바용 이중 링 아이콘.
 ///
-/// - 바깥 링 : 현재 한도 창이 리셋되기까지 남은 시간 (무채색)
+/// - 바깥 링 : 현재 한도 창이 얼마나 지났는지 (무채색)
 /// - 안쪽 링 : 사용률 (초록 → 주황 → 빨강 → 흰색)
+///
+/// 두 링 모두 '차오르는' 방향이다. 바깥 링이 줄어드는 방향이면 안쪽 링과 반대로 움직여
+/// 한눈에 읽기 어렵다. 같은 방향이면 리셋 순간에 둘이 함께 완성된다.
 ///
 /// 바깥 링을 무채색으로 두는 이유는, 색이 오직 사용량만 뜻하게 하기 위해서다.
 /// 두 링에 모두 색을 쓰면 어느 쪽 색이 무슨 뜻인지 매번 되짚어야 한다.
@@ -32,10 +35,10 @@ enum RingIcon {
 
     /// - Parameters:
     ///   - pct: 사용률 0~100
-    ///   - remaining: 리셋까지 남은 비율 0~1. nil 이면 바깥 링을 그리지 않는다.
+    ///   - elapsed: 현재 창이 지난 비율 0~1. nil 이면 바깥 링을 그리지 않는다.
     ///   - isDark: 메뉴바 배경이 어두운지
     static func make(
-        pct: Double, remaining: Double?, letter: String, isDark: Bool, size: CGFloat = 20
+        pct: Double, elapsed: Double?, letter: String, isDark: Bool, size: CGFloat = 20
     ) -> NSImage {
         let palette = Palette(isDark: isDark)
 
@@ -48,11 +51,11 @@ enum RingIcon {
             let innerWidth = size * 0.125
             let innerRadius = outerRadius - outerWidth / 2 - gap - innerWidth / 2
 
-            // 바깥 링 — 남은 시간
+            // 바깥 링 — 창이 지난 정도
             circle(center: center, radius: outerRadius, width: outerWidth, color: palette.outerTrack)
-            if let remaining {
+            if let elapsed {
                 arc(
-                    center: center, radius: outerRadius, fraction: remaining,
+                    center: center, radius: outerRadius, fraction: elapsed,
                     width: outerWidth, color: palette.outerArc, rounded: false)
             }
 
