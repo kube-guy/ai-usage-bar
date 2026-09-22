@@ -146,6 +146,8 @@ struct ClaudeProvider: UsageProvider {
         let plan = planName(token)
         let stats = scanLocalStats()
 
+        // usage API 는 리셋 시각만 주고 창 길이는 주지 않는다. 이름 그대로 5시간으로 본다.
+        let sessionWindowSeconds: Double = 5 * 3600
         let fiveHour = usage.dict("five_hour")
         let sevenDay = usage.dict("seven_day")
         let sessionPct = fiveHour.double("utilization")
@@ -182,6 +184,10 @@ struct ClaudeProvider: UsageProvider {
             .text("  전체: \(Format.count(stats.lifetimeTotal)) messages"),
         ]
 
-        return UsageResult(sessionPercent: sessionPct, rows: rows)
+        let resetsAt = ISODate.parse(fiveHour.string("resets_at"))
+        return UsageResult(
+            sessionPercent: sessionPct,
+            sessionRemaining: remainingFraction(resetsAt: resetsAt, windowSeconds: sessionWindowSeconds),
+            rows: rows)
     }
 }

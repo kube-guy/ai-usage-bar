@@ -11,6 +11,8 @@ final class StatusItemController {
     private let statusItem: NSStatusItem
     private let queue: DispatchQueue
     private var timer: Timer?
+    /// 외형이 바뀌었을 때 API 를 다시 부르지 않고 아이콘만 다시 그리기 위해 보관한다.
+    private var lastResult: UsageResult?
 
     init(provider: UsageProvider) {
         self.provider = provider
@@ -23,12 +25,35 @@ final class StatusItemController {
         timer = Timer.scheduledTimer(withTimeInterval: Self.refreshInterval, repeats: true) { [weak self] _ in
             self?.refresh()
         }
+
+        // 라이트/다크 전환 시 바깥 링의 무채색 톤을 뒤집어야 한다.
+        // 다음 갱신(최대 1분)까지 기다리지 않도록 알림을 받아 즉시 다시 그린다.
+        DistributedNotificationCenter.default.addObserver(
+            self, selector: #selector(appearanceChanged),
+            name: Notification.Name("AppleInterfaceThemeChangedNotification"), object: nil)
+
         refresh()
     }
 
     deinit {
         timer?.invalidate()
+        DistributedNotificationCenter.default.removeObserver(self)
         NSStatusBar.system.removeStatusItem(statusItem)
+    }
+
+    @objc private func appearanceChanged() {
+        // 알림이 오는 시점에는 메뉴바 외형이 아직 바뀌지 않았을 수 있다.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+            guard let self, let result = self.lastResult else { return }
+            self.apply(result)
+        }
+    }
+
+    /// 메뉴바 배경이 어두운지. 시스템 외형 설정이 아니라 상태 아이템 버튼의
+    /// 실제 외형을 본다. 배경화면 때문에 메뉴바만 어두워진 경우까지 반영된다.
+    private var isDarkMenuBar: Bool {
+        guard let appearance = statusItem.button?.effectiveAppearance else { return true }
+        return appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
     }
 
     @objc private func manualRefresh() {
@@ -54,7 +79,12 @@ final class StatusItemController {
 
     private func apply(_ result: UsageResult) {
         guard let button = statusItem.button else { return }
-        button.image = RingIcon.make(pct: result.sessionPercent, letter: provider.letter)
+        lastResult = result
+        button.image = RingIcon.make(
+            pct: result.sessionPercent,
+            remaining: result.sessionRemaining,
+            letter: provider.letter,
+            isDark: isDarkMenuBar)
         button.imagePosition = .imageLeading
         button.title = " \(Format.percent(result.sessionPercent))"
 
@@ -70,6 +100,7 @@ final class StatusItemController {
         guard let button = statusItem.button else { return }
         // 직전 사용률 링이 ⚠️ 옆에 남지 않도록 아이콘을 지운다.
         button.image = nil
+        lastResult = nil
         button.title = "\(provider.letter) ⚠️"
 
         let menu = NSMenu()

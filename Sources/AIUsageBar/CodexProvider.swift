@@ -87,6 +87,13 @@ struct CodexProvider: UsageProvider {
             ]
         }
 
-        return UsageResult(sessionPercent: sessionPct, rows: rows)
+        // Codex 는 창 길이를 명시적으로 준다. 없으면 5시간으로 본다.
+        let windowSeconds = primary.double("limit_window_seconds") > 0
+            ? primary.double("limit_window_seconds") : 5 * 3600
+        return UsageResult(
+            sessionPercent: sessionPct,
+            sessionRemaining: remainingFraction(
+                resetsAt: date(primary["reset_at"]), windowSeconds: windowSeconds),
+            rows: rows)
     }
 }

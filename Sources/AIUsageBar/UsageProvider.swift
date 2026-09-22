@@ -23,7 +23,17 @@ enum MenuRow {
 struct UsageResult {
     /// 메뉴바 링에 표시할 5시간 세션 사용률.
     let sessionPercent: Double
+    /// 세션 한도가 리셋되기까지 남은 비율 0~1. 창 길이를 알 수 없으면 nil.
+    let sessionRemaining: Double?
     let rows: [MenuRow]
+}
+
+/// 리셋 시각과 창 길이로 남은 비율을 구한다.
+func remainingFraction(resetsAt: Date?, windowSeconds: Double) -> Double? {
+    guard let resetsAt, windowSeconds > 0 else { return nil }
+    let remaining = resetsAt.timeIntervalSinceNow
+    guard remaining.isFinite else { return nil }
+    return min(max(remaining / windowSeconds, 0), 1)
 }
 
 protocol UsageProvider {
