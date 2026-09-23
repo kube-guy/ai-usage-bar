@@ -12,7 +12,8 @@ import AppKit
 /// 정보 성격에 따라 형태를 나눴다. 시간은 돌아오니 원, 한도는 쓰면 줄어드니 막대다.
 /// 같은 형태를 크기만 달리해 여러 개 놓으면 무엇이 무엇인지 매번 되짚게 된다.
 ///
-/// 막대는 배터리처럼 **남은 양**을 칠한다. 가득 찬 초록에서 시작해 줄면서 노랑·빨강이 된다.
+/// 막대는 배터리처럼 **남은 양**을 칠한다. 가득 찬 초록에서 시작해 줄면서 앰버가 되고,
+/// 얼마 안 남으면 막대 전체가 빨개지고 남은 양이 흰색으로 얹힌다.
 enum StatusIcon {
     /// 메뉴바 높이(~22pt)를 넘기면 이미지가 축소되어 전부 작아진다. 20 을 넘기지 않는다.
     private static let height: CGFloat = 20
@@ -126,24 +127,23 @@ enum StatusIcon {
 
     private static func drawBar(x: CGFloat, y: CGFloat, used: Double, isDark: Bool) {
         let remaining = 100 - min(max(used, 0), 100)
+        let critical = remaining <= 14
         let color = level(remaining: remaining, isDark: isDark)
         let frame = NSRect(x: x, y: y, width: barWidth, height: barHeight)
 
-        // 거의 비면 칠할 면적이 없어 색 신호가 사라진다. 트랙을 같은 색으로 물들여
-        // '빨갛게 비어 있음'이 보이게 한다. 배터리가 저전력일 때 빨개지는 것과 같다.
-        let trackColor =
-            remaining <= 39
-            ? color.withAlphaComponent(remaining <= 14 ? 0.58 : 0.34)
-            : mono(isDark, 0.22)
+        // 거의 비면 칠할 면적이 없어 색 신호가 사라진다. 그때는 막대 전체를 빨갛게
+        // 칠하고 남은 양을 흰색으로 얹어, '빨갛게 비어 있음'이 한눈에 보이게 한다.
+        // 앰버 구간까지 물들이면 바탕과 채움이 같은 색 계열이라 탁해지므로 건드리지 않는다.
         NSBezierPath(roundedRect: frame, xRadius: barHeight / 2, yRadius: barHeight / 2)
-            .fill(with: trackColor)
+            .fill(with: critical ? color.withAlphaComponent(0.92) : mono(isDark, 0.22))
 
         let filled = barWidth * CGFloat(remaining / 100)
         guard filled > 0.3 else { return }
+        let fillColor = critical ? NSColor(white: 1, alpha: isDark ? 1.0 : 0.95) : color
         NSBezierPath(
             roundedRect: NSRect(x: x, y: y, width: max(filled, barHeight), height: barHeight),
             xRadius: barHeight / 2, yRadius: barHeight / 2
-        ).fill(with: color)
+        ).fill(with: fillColor)
     }
 }
 
