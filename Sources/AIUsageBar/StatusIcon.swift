@@ -2,10 +2,10 @@ import AppKit
 
 /// 메뉴바 항목 전체를 하나의 이미지로 그린다. 숫자 텍스트는 쓰지 않는다.
 ///
-///     X  ◎  ▬▬▬▬
-///           ▬▬▬▬
+///     (X) ▬▬▬▬
+///         ▬▬▬▬
 ///
-/// - 글자      : 서비스 구분(C/X). 왼쪽에 크게 둔다
+/// - 글자      : 서비스 구분(C/X). 원 안에 둔다
 /// - 이중 원   : 리셋까지의 진행. 안쪽이 5시간, 바깥이 주간
 /// - 가로 바   : 남은 한도. 위가 5시간, 아래가 주간
 ///
@@ -14,16 +14,15 @@ import AppKit
 ///
 /// 막대는 배터리처럼 **남은 양**을 칠한다. 가득 찬 초록에서 시작해 줄면서 노랑·빨강이 된다.
 enum StatusIcon {
-    // 레이아웃 (pt). 메뉴바 높이가 ~22pt 라 세로는 18 을 넘기지 않는다.
-    private static let height: CGFloat = 18
-    private static let glyphBoxWidth: CGFloat = 11
-    private static let ringSize: CGFloat = 15
+    /// 메뉴바 높이(~22pt)를 넘기면 이미지가 축소되어 전부 작아진다. 20 을 넘기지 않는다.
+    private static let height: CGFloat = 20
+    private static let ringSize: CGFloat = 19
     private static let gapBeforeBars: CGFloat = 4
     private static let barWidth: CGFloat = 14
     private static let barHeight: CGFloat = 4.6
     private static let barGap: CGFloat = 1.8
 
-    static var width: CGFloat { glyphBoxWidth + ringSize + gapBeforeBars + barWidth }
+    static var width: CGFloat { ringSize + gapBeforeBars + barWidth }
 
     private static func mono(_ isDark: Bool, _ alpha: CGFloat) -> NSColor {
         isDark ? NSColor(white: 1, alpha: alpha) : NSColor(white: 0.08, alpha: alpha)
@@ -33,8 +32,8 @@ enum StatusIcon {
     private static func level(remaining: Double, isDark: Bool) -> NSColor {
         if remaining <= 14 {
             return isDark
-                ? NSColor(srgbRed: 1.00, green: 0.42, blue: 0.39, alpha: 1)
-                : NSColor(srgbRed: 0.80, green: 0.16, blue: 0.16, alpha: 1)
+                ? NSColor(srgbRed: 1.00, green: 0.27, blue: 0.23, alpha: 1)
+                : NSColor(srgbRed: 0.72, green: 0.07, blue: 0.07, alpha: 1)
         }
         if remaining <= 39 {
             return isDark
@@ -55,14 +54,12 @@ enum StatusIcon {
         let image = NSImage(size: NSSize(width: width, height: height), flipped: false) { _ in
             let centerY = height / 2
 
-            drawGlyph(letter, center: NSPoint(x: glyphBoxWidth / 2 + 0.5, y: centerY), isDark: isDark)
-
-            let ringCenter = NSPoint(x: glyphBoxWidth + ringSize / 2, y: centerY)
+            let ringCenter = NSPoint(x: ringSize / 2, y: centerY)
             drawRings(
-                center: ringCenter, sessionElapsed: sessionElapsed,
+                center: ringCenter, letter: letter, sessionElapsed: sessionElapsed,
                 weeklyElapsed: weeklyElapsed, isDark: isDark)
 
-            let barX = glyphBoxWidth + ringSize + gapBeforeBars
+            let barX = ringSize + gapBeforeBars
             drawBar(
                 x: barX, y: centerY + barGap / 2, used: sessionPct, isDark: isDark)
             drawBar(
@@ -73,8 +70,8 @@ enum StatusIcon {
         return image
     }
 
-    private static func drawGlyph(_ letter: String, center: NSPoint, isDark: Bool) {
-        let font = NSFont.systemFont(ofSize: 14.5, weight: .semibold)
+    private static func drawGlyph(_ letter: String, center: NSPoint, size: CGFloat, isDark: Bool) {
+        let font = NSFont.systemFont(ofSize: size, weight: .semibold)
         let text = NSAttributedString(
             string: letter, attributes: [.font: font, .foregroundColor: mono(isDark, 0.95)])
         let bounds = text.size()
@@ -83,11 +80,13 @@ enum StatusIcon {
 
     /// 바깥이 주간, 안쪽이 5시간. 둘 다 리셋을 향해 차오른다.
     private static func drawRings(
-        center: NSPoint, sessionElapsed: Double?, weeklyElapsed: Double?, isDark: Bool
+        center: NSPoint, letter: String, sessionElapsed: Double?, weeklyElapsed: Double?,
+        isDark: Bool
     ) {
-        let stroke = ringSize * 0.115
+        // 선을 얇게 둘수록 안쪽 글자 자리가 넓어진다. 글자를 원 안에 넣으려면 이 균형이 전부다.
+        let stroke = ringSize * 0.070
         let outerRadius = (ringSize - stroke) / 2
-        let innerRadius = outerRadius - stroke / 2 - ringSize * 0.075 - stroke / 2
+        let innerRadius = outerRadius - stroke / 2 - ringSize * 0.058 - stroke / 2
 
         ring(center: center, radius: outerRadius, width: stroke, color: mono(isDark, 0.20))
         ring(center: center, radius: innerRadius, width: stroke, color: mono(isDark, 0.20))
@@ -101,6 +100,7 @@ enum StatusIcon {
                 center: center, radius: innerRadius, width: stroke,
                 color: mono(isDark, 0.92), fraction: sessionElapsed)
         }
+        drawGlyph(letter, center: center, size: (innerRadius - stroke / 2) * 1.50, isDark: isDark)
     }
 
     /// fraction 이 nil 이면 트랙(전체 원)을 그린다.
@@ -133,7 +133,7 @@ enum StatusIcon {
         // '빨갛게 비어 있음'이 보이게 한다. 배터리가 저전력일 때 빨개지는 것과 같다.
         let trackColor =
             remaining <= 39
-            ? color.withAlphaComponent(remaining <= 14 ? 0.38 : 0.26)
+            ? color.withAlphaComponent(remaining <= 14 ? 0.58 : 0.34)
             : mono(isDark, 0.22)
         NSBezierPath(roundedRect: frame, xRadius: barHeight / 2, yRadius: barHeight / 2)
             .fill(with: trackColor)
