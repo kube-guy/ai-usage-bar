@@ -1,6 +1,6 @@
 import AppKit
 
-let version = "0.4.0"
+let version = "0.5.0"
 
 // MARK: - 명령줄 인자
 
@@ -65,11 +65,12 @@ if dump {
         print("── \(source.name) [\(source.letter)] ─────────────")
         do {
             let result = try source.fetch()
-            print("  세션 사용률: \(Format.percent(result.sessionPercent))")
+            print("  세션 사용률: \(Format.percent(result.sessionPercent))  (글자 색)")
+            print("  주간 사용률: \(Format.percent(result.weeklyPercent))  (바깥 링)")
             if let elapsed = result.sessionElapsed {
-                print("  세션 창 경과: \(Format.percent(elapsed * 100))  (바깥 링)")
+                print("  세션 창 경과: \(Format.percent(elapsed * 100))  (안쪽 링)")
             } else {
-                print("  세션 창 경과: 알 수 없음 (바깥 링 미표시)")
+                print("  세션 창 경과: 알 수 없음 (안쪽 링 미표시)")
             }
             for row in result.rows {
                 switch row {

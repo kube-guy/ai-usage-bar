@@ -2,76 +2,74 @@ import AppKit
 
 /// 메뉴바용 이중 링 아이콘.
 ///
-/// - 바깥 링 : 현재 한도 창이 얼마나 지났는지 (무채색)
-/// - 안쪽 링 : 사용률 (초록 → 주황 → 빨강 → 흰색)
+/// - 바깥 링(얇고 옅음) : 주간 한도 사용률
+/// - 안쪽 링(굵고 진함) : 현재 5시간 창이 얼마나 지났는지
+/// - 가운데 글자        : 서비스 구분. 세션 사용률이 높을 때만 색이 붙는다
 ///
-/// 두 링 모두 '차오르는' 방향이다. 바깥 링이 줄어드는 방향이면 안쪽 링과 반대로 움직여
-/// 한눈에 읽기 어렵다. 같은 방향이면 리셋 순간에 둘이 함께 완성된다.
+/// 설계 원칙은 "평소엔 무채색, 바빠질 때만 색"이다. 여유로울 때까지 초록을 칠하면
+/// 메뉴바가 늘 시끄럽고, 정작 경고가 눈에 띄지 않는다. 색이 나타나는 것 자체가 신호다.
 ///
-/// 바깥 링을 무채색으로 두는 이유는, 색이 오직 사용량만 뜻하게 하기 위해서다.
-/// 두 링에 모두 색을 쓰면 어느 쪽 색이 무슨 뜻인지 매번 되짚어야 한다.
+/// 두 링은 색 대신 굵기와 농도로 구분한다. 색은 경고 전용으로 남겨둔다.
 ///
-/// `NSImage(size:flipped:drawingHandler:)` 는 표시 배율에 맞춰 다시 그려주므로
-/// 레티나에서도 선명하고, 파이썬 판과 달리 PNG 임시 파일을 거치지 않는다.
+/// 글자에 외곽선을 두르지 않는 것도 같은 이유다. 예전에는 흰 글자를 고집하느라
+/// 검정 테두리가 필요했는데, 배경에 맞춰 글자색을 뒤집으면 테두리 없이도 읽힌다.
 enum RingIcon {
-    /// 메뉴바 배경이 어두운지에 따라 무채색 톤을 뒤집는다.
-    private struct Palette {
-        let outerArc: NSColor
-        let outerTrack: NSColor
-        let innerTrack: NSColor
+    /// 메뉴바 배경이 어두운지에 따라 무채색을 뒤집는다.
+    private static func mono(_ isDark: Bool, _ alpha: CGFloat) -> NSColor {
+        isDark ? NSColor(white: 1, alpha: alpha) : NSColor(white: 0.08, alpha: alpha)
+    }
 
-        init(isDark: Bool) {
-            if isDark {
-                outerArc = NSColor(white: 1, alpha: 0.85)
-                outerTrack = NSColor(white: 1, alpha: 0.20)
-                innerTrack = NSColor(white: 1, alpha: 0.27)
-            } else {
-                outerArc = NSColor(white: 0, alpha: 0.55)
-                outerTrack = NSColor(white: 0, alpha: 0.13)
-                innerTrack = NSColor(white: 0, alpha: 0.15)
-            }
+    /// 세션 사용률이 높을 때만 색을 돌려준다. 여유로우면 nil.
+    /// 원색보다 채도를 낮춰 메뉴바에서 튀지 않게 한다.
+    private static func warning(_ pct: Double, isDark: Bool) -> NSColor? {
+        if pct >= 86 {
+            return isDark
+                ? NSColor(srgbRed: 1.00, green: 0.41, blue: 0.38, alpha: 1)
+                : NSColor(srgbRed: 0.78, green: 0.18, blue: 0.18, alpha: 1)
         }
+        if pct >= 61 {
+            return isDark
+                ? NSColor(srgbRed: 0.96, green: 0.71, blue: 0.31, alpha: 1)
+                : NSColor(srgbRed: 0.75, green: 0.47, blue: 0.08, alpha: 1)
+        }
+        return nil
     }
 
     /// - Parameters:
-    ///   - pct: 사용률 0~100
-    ///   - elapsed: 현재 창이 지난 비율 0~1. nil 이면 바깥 링을 그리지 않는다.
+    ///   - sessionPct: 5시간 세션 사용률 0~100. 글자 색을 정한다.
+    ///   - weeklyPct: 주간 한도 사용률 0~100. 바깥 링.
+    ///   - elapsed: 현재 5시간 창이 지난 비율 0~1. 안쪽 링. nil 이면 그리지 않는다.
     ///   - isDark: 메뉴바 배경이 어두운지
     static func make(
-        pct: Double, elapsed: Double?, letter: String, isDark: Bool, size: CGFloat = 20
+        sessionPct: Double, weeklyPct: Double, elapsed: Double?,
+        letter: String, isDark: Bool, size: CGFloat = 20
     ) -> NSImage {
-        let palette = Palette(isDark: isDark)
-
         let image = NSImage(size: NSSize(width: size, height: size), flipped: false) { _ in
             let center = NSPoint(x: size / 2, y: size / 2)
 
-            let outerWidth = size * 0.075
+            let outerWidth = size * 0.052
             let outerRadius = (size - outerWidth) / 2
-            let gap = size * 0.045
-            let innerWidth = size * 0.125
-            let innerRadius = outerRadius - outerWidth / 2 - gap - innerWidth / 2
+            let innerWidth = size * 0.078
+            let innerRadius = outerRadius - outerWidth / 2 - size * 0.052 - innerWidth / 2
 
-            // 바깥 링 — 창이 지난 정도
-            circle(center: center, radius: outerRadius, width: outerWidth, color: palette.outerTrack)
+            circle(center: center, radius: outerRadius, width: outerWidth, color: mono(isDark, 0.16))
+            circle(center: center, radius: innerRadius, width: innerWidth, color: mono(isDark, 0.16))
+
+            arc(
+                center: center, radius: outerRadius, fraction: min(max(weeklyPct, 0), 100) / 100,
+                width: outerWidth, color: mono(isDark, 0.55))
             if let elapsed {
                 arc(
-                    center: center, radius: outerRadius, fraction: elapsed,
-                    width: outerWidth, color: palette.outerArc, rounded: false)
+                    center: center, radius: innerRadius, fraction: elapsed,
+                    width: innerWidth, color: mono(isDark, 0.95))
             }
 
-            // 안쪽 링 — 사용률
-            circle(center: center, radius: innerRadius, width: innerWidth, color: palette.innerTrack)
-            let clamped = min(max(pct, 0), 100)
-            if clamped > 0 {
-                arc(
-                    center: center, radius: innerRadius, fraction: clamped / 100,
-                    width: innerWidth, color: Format.statusColor(clamped), rounded: true)
-            }
-
-            drawLetter(letter, center: center, radius: innerRadius)
+            drawLetter(
+                letter, center: center, radius: innerRadius - innerWidth * 0.9,
+                color: warning(sessionPct, isDark: isDark) ?? mono(isDark, 0.95))
             return true
         }
-        // 링 색이 상태를 나타내므로 템플릿 모드(단색 강제)를 쓰지 않는다.
+        // 색이 상태를 나타내므로 템플릿 모드(단색 강제)를 쓰지 않는다.
         image.isTemplate = false
         return image
     }
@@ -86,8 +84,7 @@ enum RingIcon {
 
     /// 12시에서 시계방향으로 `fraction` 만큼. AppKit 은 y축이 위쪽이라 90도가 12시다.
     private static func arc(
-        center: NSPoint, radius: CGFloat, fraction: Double, width: CGFloat,
-        color: NSColor, rounded: Bool
+        center: NSPoint, radius: CGFloat, fraction: Double, width: CGFloat, color: NSColor
     ) {
         let clamped = min(max(fraction, 0), 1)
         guard clamped > 0 else { return }
@@ -96,36 +93,19 @@ enum RingIcon {
             withCenter: center, radius: radius,
             startAngle: 90, endAngle: 90 - 360 * clamped, clockwise: true)
         path.lineWidth = width
-        if rounded { path.lineCapStyle = .round }
+        path.lineCapStyle = .round
         color.set()
         path.stroke()
     }
 
-    /// 안쪽 링 안에 로고 글자. 링이 둘이라 공간이 좁으므로 안쪽 반지름에 맞춘다.
-    private static func drawLetter(_ letter: String, center: NSPoint, radius: CGFloat) {
-        let fontSize = radius * 1.15
-        let font = NSFont(name: "Arial-BoldMT", size: fontSize)
-            ?? NSFont.boldSystemFont(ofSize: fontSize)
-
-        let fill = NSAttributedString(
-            string: letter, attributes: [.font: font, .foregroundColor: NSColor.white])
-        let bounds = fill.size()
-        let origin = NSPoint(x: center.x - bounds.width / 2, y: center.y - bounds.height / 2)
-
-        // 글자 바깥쪽에만 외곽선이 남도록 굵게 먼저 그리고 흰 글자로 덮는다.
-        // `.strokeWidth` 는 포인트가 아니라 글자 크기의 백분율이고, 이음을 둥글게
-        // 하지 않으면 X 의 접합부에 뾰족한 스파이크가 생긴다.
-        if let context = NSGraphicsContext.current?.cgContext {
-            context.saveGState()
-            context.setLineJoin(.round)
-            NSAttributedString(string: letter, attributes: [
-                .font: font,
-                .foregroundColor: NSColor.clear,
-                .strokeColor: NSColor.black.withAlphaComponent(0.85),
-                .strokeWidth: 15.0,
-            ]).draw(at: origin)
-            context.restoreGState()
-        }
-        fill.draw(at: origin)
+    /// 시스템 폰트로 그린다. Arial Bold 는 메뉴바에서 이질적이다.
+    private static func drawLetter(
+        _ letter: String, center: NSPoint, radius: CGFloat, color: NSColor
+    ) {
+        let font = NSFont.systemFont(ofSize: radius * 1.30, weight: .semibold)
+        let text = NSAttributedString(
+            string: letter, attributes: [.font: font, .foregroundColor: color])
+        let bounds = text.size()
+        text.draw(at: NSPoint(x: center.x - bounds.width / 2, y: center.y - bounds.height / 2))
     }
 }

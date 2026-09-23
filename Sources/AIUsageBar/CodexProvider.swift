@@ -92,6 +92,7 @@ struct CodexProvider: UsageProvider {
             ? primary.double("limit_window_seconds") : 5 * 3600
         return UsageResult(
             sessionPercent: sessionPct,
+            weeklyPercent: weeklyPct,
             sessionElapsed: elapsedFraction(
                 resetsAt: date(primary["reset_at"]), windowSeconds: windowSeconds),
             rows: rows)

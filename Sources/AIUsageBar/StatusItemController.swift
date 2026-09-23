@@ -81,7 +81,8 @@ final class StatusItemController {
         guard let button = statusItem.button else { return }
         lastResult = result
         button.image = RingIcon.make(
-            pct: result.sessionPercent,
+            sessionPct: result.sessionPercent,
+            weeklyPct: result.weeklyPercent,
             elapsed: result.sessionElapsed,
             letter: provider.letter,
             isDark: isDarkMenuBar)
