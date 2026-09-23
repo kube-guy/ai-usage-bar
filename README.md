@@ -1,13 +1,15 @@
 # ai-usage-bar
 
-Claude Code 와 Codex CLI 의 사용량 한도를 macOS 메뉴바에 링 게이지로 표시합니다.
+Claude Code 와 Codex CLI 의 사용량 한도를 macOS 메뉴바에 표시합니다.
 
-```
- 20%   ← Claude Code (5시간 세션 사용률)
-  3%   ← Codex CLI  (5시간 세션 사용률)
-```
+![메뉴바 항목](docs/releases/v0.9.0.png)
+
+원은 리셋까지의 경과(안쪽 5시간, 바깥 주간), 막대는 남은 한도(위 5시간, 아래 주간)입니다.
+글자는 서비스 구분으로, `C` 가 Claude Code, `X` 가 Codex CLI 입니다. 한도가 줄면 막대 색이
+초록 → 노랑 → 빨강으로 바뀝니다.
 
 클릭하면 플랜, 5시간 세션 / 주간 한도, 리셋 시각, 이번 달 모델별 사용 비중이 보입니다.
+버전마다 이 항목이 어떻게 바뀌었는지는 [릴리스별 모습](docs/releases/README.md) 에 있습니다.
 
 Swift 네이티브 앱이라 런타임 의존성이 없습니다 — 파이썬도, 별도 프레임워크도 설치하지 않습니다.
 
@@ -21,6 +23,18 @@ brew install ai-usage-bar
 
 Homebrew 7.0 부터는 서드파티 tap 의 formula 를 쓰려면 `brew trust` 로 한 번 신뢰를 표시해야 합니다.
 (`brew trust kube-guy/kit` 로 tap 전체를 신뢰할 수도 있지만, 위처럼 formula 하나만 신뢰하는 쪽이 좁습니다.)
+
+### 이전 버전 설치
+
+아이콘 디자인이 버전마다 달라서, 마음에 드는 쪽을 골라 설치할 수 있습니다. 버전별 모습은
+[릴리스별 모습](docs/releases/README.md) 에서 보세요.
+
+```sh
+"$(brew --repo kube-guy/kit)"/install-version.sh ai-usage-bar 0.7.2
+"$(brew --repo kube-guy/kit)"/install-version.sh ai-usage-bar latest   # 되돌리기
+```
+
+고른 버전에 머무르도록 `brew pin` 까지 걸어둡니다.
 
 ## 로그인
 

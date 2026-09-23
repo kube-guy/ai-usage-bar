@@ -37,12 +37,18 @@ if ! git diff --quiet; then
   git commit -am "Release v${VERSION}"
 fi
 
-# 3. 태그 푸시 — GitHub 가 이 태그로 tarball 을 만들어준다
+# 3. 이 버전의 메뉴바 항목을 그려 남긴다. 아이콘을 눈으로 보고 고른 릴리스가 많아
+#    글로만 적어두면 나중에 되짚을 수가 없다. 태그가 제 그림을 담도록 태그 전에 커밋한다.
+"$REPO_DIR/scripts/render-icon.sh" HEAD "docs/releases/v${VERSION}.png" >/dev/null
+git add "docs/releases/v${VERSION}.png"
+git diff --cached --quiet || git commit -q -m "docs: v${VERSION} 메뉴바 모습"
+
+# 4. 태그 푸시 — GitHub 가 이 태그로 tarball 을 만들어준다
 git tag -a "v${VERSION}" -m "v${VERSION}"
 git push origin main
 git push origin "v${VERSION}"
 
-# 4. tarball 해시 계산 (태그 생성 직후에는 잠시 404 일 수 있어 재시도)
+# 5. tarball 해시 계산 (태그 생성 직후에는 잠시 404 일 수 있어 재시도)
 echo "tarball 해시 계산 중: $TARBALL_URL"
 SHA=""
 for _ in 1 2 3 4 5; do
@@ -54,7 +60,7 @@ done
 [[ -n "$SHA" ]] || { echo "tarball 을 받지 못했습니다: $TARBALL_URL" >&2; exit 1; }
 echo "sha256 = $SHA"
 
-# 5. tap 의 formula 갱신 후 푸시
+# 6. tap 의 formula 갱신 후 푸시
 sed -i '' -E "s|^  url \".*\"|  url \"${TARBALL_URL}\"|" "$FORMULA"
 sed -i '' -E "s|^  sha256 \".*\"|  sha256 \"${SHA}\"|" "$FORMULA"
 
