@@ -31,7 +31,7 @@ enum StatusIcon {
 
     /// 남은 한도에 따른 색. 넉넉하면 초록, 줄면 앰버, 얼마 없으면 레드.
     private static func level(remaining: Double, isDark: Bool) -> NSColor {
-        if remaining <= 14 {
+        if remaining <= 10 {
             return isDark
                 ? NSColor(srgbRed: 1.00, green: 0.27, blue: 0.23, alpha: 1)
                 : NSColor(srgbRed: 0.72, green: 0.07, blue: 0.07, alpha: 1)
@@ -127,7 +127,7 @@ enum StatusIcon {
 
     private static func drawBar(x: CGFloat, y: CGFloat, used: Double, isDark: Bool) {
         let remaining = 100 - min(max(used, 0), 100)
-        let critical = remaining <= 14
+        let critical = remaining <= 10
         let color = level(remaining: remaining, isDark: isDark)
         let frame = NSRect(x: x, y: y, width: barWidth, height: barHeight)
 
@@ -139,11 +139,16 @@ enum StatusIcon {
 
         let filled = barWidth * CGFloat(remaining / 100)
         guard filled > 0.3 else { return }
+
+        // 채움을 둥근 캡슐로 그리면 실제보다 적어 보인다. 눈은 둥근 끝을 뺀 '몸통'을
+        // 비교하는데, 폭 14 · 높이 4.6 에서 53% 를 캡슐로 그리면 몸통 비율이 30% 가 된다.
+        // 트랙 모양으로 잘라내고 사각형을 채우면 보이는 길이가 실제 비율과 일치한다.
         let fillColor = critical ? NSColor(white: 1, alpha: isDark ? 1.0 : 0.95) : color
-        NSBezierPath(
-            roundedRect: NSRect(x: x, y: y, width: max(filled, barHeight), height: barHeight),
-            xRadius: barHeight / 2, yRadius: barHeight / 2
-        ).fill(with: fillColor)
+        NSGraphicsContext.saveGraphicsState()
+        NSBezierPath(roundedRect: frame, xRadius: barHeight / 2, yRadius: barHeight / 2).addClip()
+        fillColor.set()
+        NSRect(x: x, y: y, width: filled, height: barHeight).fill()
+        NSGraphicsContext.restoreGraphicsState()
     }
 }
 
