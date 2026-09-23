@@ -147,8 +147,8 @@ final class StatusItemController {
         headline.append(NSAttributedString(
             string: "  ·  \(Format.percent(used)) 사용",
             attributes: [
-                .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
-                .foregroundColor: NSColor.secondaryLabelColor,
+                .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize, weight: .medium),
+                .foregroundColor: NSColor.labelColor.withAlphaComponent(0.75),
             ]))
 
         // 막대는 사용한 만큼 채운다. 옆의 '사용' 수치와 같은 방향이라야 헷갈리지 않는다.
@@ -164,7 +164,7 @@ final class StatusItemController {
             string: String(repeating: "█", count: width - filled),
             attributes: [
                 .font: NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular),
-                .foregroundColor: NSColor.quaternaryLabelColor,
+                .foregroundColor: NSColor.tertiaryLabelColor,
             ]))
 
         let reset = NSAttributedString(
