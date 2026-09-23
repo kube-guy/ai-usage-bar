@@ -132,8 +132,10 @@ enum StatusIcon {
         NSBezierPath(roundedRect: frame, xRadius: barHeight / 2, yRadius: barHeight / 2)
             .fill(with: mono(isDark, 0.22))
 
-        let filled = barWidth * CGFloat(remaining / 100)
-        guard filled > 0.3 else { return }
+        guard remaining > 0 else { return }
+        // 조금이라도 남아 있으면 반드시 보이게 한다. 그냥 비율대로 그리면 2% 남았을 때
+        // 폭이 0.28pt 라 사실상 사라져, 가장 위험한 순간에 빨간 신호가 없어진다.
+        let filled = max(barWidth * CGFloat(remaining / 100), barHeight * 0.75)
 
         // 채움을 둥근 캡슐로 그리면 눈이 둥근 끝을 뺀 '몸통'을 비교해 실제보다 적어 보인다.
         // 트랙 모양으로 잘라내고 사각형을 채우면 보이는 길이가 값과 일치한다.

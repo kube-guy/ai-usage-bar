@@ -1,6 +1,6 @@
 import AppKit
 
-let version = "0.7.1"
+let version = "0.7.2"
 
 // MARK: - 명령줄 인자
 
