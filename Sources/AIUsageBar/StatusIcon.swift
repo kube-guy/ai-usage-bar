@@ -29,6 +29,15 @@ enum StatusIcon {
         isDark ? NSColor(white: 1, alpha: alpha) : NSColor(white: 0.08, alpha: alpha)
     }
 
+    /// 메뉴에서도 같은 기준의 색을 쓰기 위해 공개한다. 메뉴는 시스템이 외형을 맞춰주므로
+    /// 다크/라이트를 직접 고르지 않고 동적 색을 돌려준다.
+    static func levelColor(remaining: Double) -> NSColor {
+        NSColor(name: nil) { appearance in
+            let dark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            return level(remaining: remaining, isDark: dark)
+        }
+    }
+
     /// 남은 양에 따른 색. 넉넉하면 초록, 줄면 앰버, 얼마 없으면 레드.
     private static func level(remaining: Double, isDark: Bool) -> NSColor {
         if remaining <= 10 {

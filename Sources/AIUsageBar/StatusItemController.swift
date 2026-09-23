@@ -92,7 +92,13 @@ final class StatusItemController {
         button.title = ""
 
         let menu = NSMenu()
-        for row in result.rows { menu.addItem(item(for: row)) }
+        for row in result.rows {
+            if case .gauge(let label, let usedPct, let resets) = row {
+                gaugeItems(label: label, usedPct: usedPct, resets: resets).forEach(menu.addItem)
+            } else {
+                menu.addItem(item(for: row))
+            }
+        }
         menu.addItem(.separator())
         menu.addItem(action("지금 새로고침", #selector(manualRefresh)))
         menu.addItem(action("종료", #selector(NSApplication.terminate(_:)), target: NSApp))
@@ -119,9 +125,69 @@ final class StatusItemController {
 
     // MARK: - 메뉴 항목 만들기
 
+    /// 한도 한 줄을 세 개의 메뉴 항목으로 펼친다. NSMenuItem 은 한 줄짜리라
+    /// TokenDock 처럼 "값 / 막대 / 리셋"을 쌓으려면 항목을 나눠야 한다.
+    private func gaugeItems(label: String, usedPct: Double, resets: String) -> [NSMenuItem] {
+        let used = min(max(usedPct, 0), 100)
+        let remaining = 100 - used
+        let tint = StatusIcon.levelColor(remaining: remaining)
+
+        let headline = NSMutableAttributedString(
+            string: "  \(label)   ",
+            attributes: [
+                .font: NSFont.systemFont(ofSize: NSFont.systemFontSize, weight: .medium),
+                .foregroundColor: NSColor.labelColor,
+            ])
+        headline.append(NSAttributedString(
+            string: "\(Format.percent(remaining)) 남음",
+            attributes: [
+                .font: NSFont.systemFont(ofSize: NSFont.systemFontSize, weight: .semibold),
+                .foregroundColor: tint,
+            ]))
+        headline.append(NSAttributedString(
+            string: "  ·  \(Format.percent(used)) 사용",
+            attributes: [
+                .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
+                .foregroundColor: NSColor.secondaryLabelColor,
+            ]))
+
+        // 막대는 사용한 만큼 채운다. 옆의 '사용' 수치와 같은 방향이라야 헷갈리지 않는다.
+        let width = 22
+        let filled = Int((Double(width) * used / 100).rounded())
+        let bar = NSMutableAttributedString(
+            string: "  " + String(repeating: "█", count: filled),
+            attributes: [
+                .font: NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular),
+                .foregroundColor: tint,
+            ])
+        bar.append(NSAttributedString(
+            string: String(repeating: "█", count: width - filled),
+            attributes: [
+                .font: NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular),
+                .foregroundColor: NSColor.quaternaryLabelColor,
+            ]))
+
+        let reset = NSAttributedString(
+            string: "  ↻ \(resets) 리셋",
+            attributes: [
+                .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
+                .foregroundColor: NSColor.secondaryLabelColor,
+            ])
+
+        return [headline, bar, reset].map { attributed in
+            let item = NSMenuItem(title: attributed.string, action: nil, keyEquivalent: "")
+            item.attributedTitle = attributed
+            item.isEnabled = false
+            return item
+        }
+    }
+
     private func item(for row: MenuRow) -> NSMenuItem {
         switch row {
         case .separator:
+            return .separator()
+        case .gauge:
+            // gauge 는 여러 줄로 펼쳐지므로 메뉴를 만들 때 따로 처리한다.
             return .separator()
         case .text(let title):
             let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")

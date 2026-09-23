@@ -17,6 +17,8 @@ enum MenuRow {
     case text(String)
     /// 막대 그래프가 들어가 자릿수가 맞아야 하는 줄 — 고정폭 글꼴로 그린다.
     case mono(String)
+    /// 한도 하나를 색이 들어간 게이지로 보여준다. 실제 그리기는 컨트롤러가 맡는다.
+    case gauge(label: String, usedPct: Double, resets: String)
     case separator
 }
 

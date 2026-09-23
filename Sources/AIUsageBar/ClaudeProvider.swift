@@ -156,11 +156,13 @@ struct ClaudeProvider: UsageProvider {
         var rows: [MenuRow] = [
             .text("Plan: \(plan)"),
             .separator,
-            .text("Plan limits"),
-            .mono("  Current session   \(Format.bar(sessionPct))  \(Format.percent(sessionPct))"),
-            .text("    resets in \(Format.reset(ISODate.parse(fiveHour.string("resets_at"))))"),
-            .mono("  Weekly limits     \(Format.bar(weeklyPct))  \(Format.percent(weeklyPct))"),
-            .text("    resets \(Format.reset(ISODate.parse(sevenDay.string("resets_at"))))"),
+            .text("한도"),
+            .gauge(
+                label: "5시간 세션", usedPct: sessionPct,
+                resets: Format.reset(ISODate.parse(fiveHour.string("resets_at")))),
+            .gauge(
+                label: "주간 (7일)", usedPct: weeklyPct,
+                resets: Format.reset(ISODate.parse(sevenDay.string("resets_at")))),
             .separator,
             .text("Models this month:"),
         ]

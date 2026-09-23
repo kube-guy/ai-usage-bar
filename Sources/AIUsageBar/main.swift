@@ -1,6 +1,6 @@
 import AppKit
 
-let version = "0.7.2"
+let version = "0.8.0"
 
 // MARK: - 명령줄 인자
 
@@ -77,6 +77,14 @@ if dump {
                 switch row {
                 case .separator: print("")
                 case .text(let line), .mono(let line): print(line)
+                case .gauge(let label, let used, let resets):
+                    let remaining = 100 - min(max(used, 0), 100)
+                    let width = 22
+                    let filled = Int((Double(width) * min(max(used, 0), 100) / 100).rounded())
+                    print("  \(label)   \(Format.percent(remaining)) 남음  ·  \(Format.percent(used)) 사용")
+                    print("  " + String(repeating: "█", count: filled)
+                        + String(repeating: "░", count: width - filled))
+                    print("  ↻ \(resets) 리셋")
                 }
             }
         } catch {

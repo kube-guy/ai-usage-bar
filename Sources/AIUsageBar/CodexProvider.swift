@@ -70,11 +70,13 @@ struct CodexProvider: UsageProvider {
         var rows: [MenuRow] = [
             .text("Plan: \(plan)"),
             .separator,
-            .text("Plan limits"),
-            .mono("  Current session   \(Format.bar(sessionPct))  \(Format.percent(sessionPct))"),
-            .text("    resets in \(Format.reset(date(primary["reset_at"])))"),
-            .mono("  Weekly limits     \(Format.bar(weeklyPct))  \(Format.percent(weeklyPct))"),
-            .text("    resets \(Format.reset(date(secondary["reset_at"])))"),
+            .text("한도"),
+            .gauge(
+                label: "5시간 세션", usedPct: sessionPct,
+                resets: Format.reset(date(primary["reset_at"]))),
+            .gauge(
+                label: "주간 (7일)", usedPct: weeklyPct,
+                resets: Format.reset(date(secondary["reset_at"]))),
         ]
 
         let credits = data.dict("credits")
