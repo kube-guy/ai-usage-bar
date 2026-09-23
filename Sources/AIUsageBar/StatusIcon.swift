@@ -14,6 +14,11 @@ import AppKit
 ///
 /// 막대는 배터리처럼 **남은 양**을 칠한다. 쓸수록 줄어들고, 줄면서 색이 바뀐다.
 /// 바탕을 덧칠하거나 채움 색을 바꾸는 장치는 두지 않는다. 남은 만큼만 그리고 색만 바꾼다.
+///
+/// 원은 속을 짙은 네이비로 채운 '동전'이다. 메뉴바는 반투명이라 배경화면 색이 그대로
+/// 비치는데, 파란 배경화면이면 링과 글자가 배경에 묻힌다. 속을 채워두면 글자가 항상
+/// 같은 바탕 위에 놓여 배경화면·다크/라이트와 무관하게 똑같이 읽힌다.
+/// 그래서 원 안쪽(링·글자)만은 명암을 따라가지 않고 흰색으로 고정한다.
 enum StatusIcon {
     /// 메뉴바 높이(~22pt)를 넘기면 이미지가 축소되어 전부 작아진다. 20 을 넘기지 않는다.
     private static let height: CGFloat = 20
@@ -22,6 +27,8 @@ enum StatusIcon {
     private static let barWidth: CGFloat = 14
     private static let barHeight: CGFloat = 4.6
     private static let barGap: CGFloat = 1.8
+    /// 원 속을 채우는 네이비. 배경화면이 무엇이든 글자 바탕이 되어주는 색이다.
+    private static let discColor = NSColor(srgbRed: 0.09, green: 0.31, blue: 0.45, alpha: 1)
 
     static var width: CGFloat { ringSize + gapBeforeBars + barWidth }
 
@@ -80,7 +87,7 @@ enum StatusIcon {
             let ringCenter = NSPoint(x: ringSize / 2, y: centerY)
             drawRings(
                 center: ringCenter, letter: letter, sessionElapsed: sessionElapsed,
-                weeklyElapsed: weeklyElapsed, isDark: isDark)
+                weeklyElapsed: weeklyElapsed)
 
             let barX = ringSize + gapBeforeBars
             drawBar(
@@ -93,37 +100,46 @@ enum StatusIcon {
         return image
     }
 
-    private static func drawGlyph(_ letter: String, center: NSPoint, size: CGFloat, isDark: Bool) {
+    private static func drawGlyph(_ letter: String, center: NSPoint, size: CGFloat) {
         let font = NSFont.systemFont(ofSize: size, weight: .semibold)
         let text = NSAttributedString(
-            string: letter, attributes: [.font: font, .foregroundColor: mono(isDark, 0.95)])
+            string: letter, attributes: [.font: font, .foregroundColor: mono(true, 0.95)])
         let bounds = text.size()
         text.draw(at: NSPoint(x: center.x - bounds.width / 2, y: center.y - bounds.height / 2))
     }
 
     /// 바깥이 주간, 안쪽이 5시간. 둘 다 리셋을 향해 차오른다.
+    ///
+    /// 속을 네이비로 채우므로 링과 글자는 다크/라이트와 무관하게 흰 계열로 고정한다.
+    /// 여기서 명암을 따라가면 밝은 메뉴바일 때 짙은 바탕에 짙은 글자가 되어 사라진다.
     private static func drawRings(
-        center: NSPoint, letter: String, sessionElapsed: Double?, weeklyElapsed: Double?,
-        isDark: Bool
+        center: NSPoint, letter: String, sessionElapsed: Double?, weeklyElapsed: Double?
     ) {
         // 선을 얇게 둘수록 안쪽 글자 자리가 넓어진다. 글자를 원 안에 넣으려면 이 균형이 전부다.
         let stroke = ringSize * 0.070
         let outerRadius = (ringSize - stroke) / 2
         let innerRadius = outerRadius - stroke / 2 - ringSize * 0.058 - stroke / 2
 
-        ring(center: center, radius: outerRadius, width: stroke, color: mono(isDark, 0.20))
-        ring(center: center, radius: innerRadius, width: stroke, color: mono(isDark, 0.20))
+        let discRadius = outerRadius + stroke / 2
+        NSBezierPath(
+            ovalIn: NSRect(
+                x: center.x - discRadius, y: center.y - discRadius,
+                width: discRadius * 2, height: discRadius * 2)
+        ).fill(with: discColor)
+
+        ring(center: center, radius: outerRadius, width: stroke, color: mono(true, 0.20))
+        ring(center: center, radius: innerRadius, width: stroke, color: mono(true, 0.20))
         if let weeklyElapsed {
             ring(
                 center: center, radius: outerRadius, width: stroke,
-                color: mono(isDark, 0.55), fraction: weeklyElapsed)
+                color: mono(true, 0.55), fraction: weeklyElapsed)
         }
         if let sessionElapsed {
             ring(
                 center: center, radius: innerRadius, width: stroke,
-                color: mono(isDark, 0.92), fraction: sessionElapsed)
+                color: mono(true, 0.92), fraction: sessionElapsed)
         }
-        drawGlyph(letter, center: center, size: (innerRadius - stroke / 2) * 1.50, isDark: isDark)
+        drawGlyph(letter, center: center, size: (innerRadius - stroke / 2) * 1.50)
     }
 
     /// fraction 이 nil 이면 트랙(전체 원)을 그린다.
