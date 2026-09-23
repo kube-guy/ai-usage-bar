@@ -68,6 +68,48 @@ cd "$TAP_DIR"
 git commit -am "ai-usage-bar ${VERSION}"
 git push origin main
 
+# 7. GitHub 릴리스 — 목록에서 버전별 모습을 바로 볼 수 있게 그림을 함께 올린다.
+#    본문은 뼈대만 만든다. 왜 그렇게 바꿨는지는 사람이 적어야 쓸모가 있다.
+cd "$REPO_DIR"
+if command -v gh >/dev/null 2>&1; then
+  NOTES="$(mktemp)"
+  {
+    git log -1 --format='%s' "v${VERSION}^{commit}"
+    cat <<MD
+
+![v${VERSION} 메뉴바 모습](https://raw.githubusercontent.com/kube-guy/ai-usage-bar/v${VERSION}/docs/releases/v${VERSION}.png)
+
+<sub>가로 네 칸은 같은 상황입니다 — 여유(29% 사용) · 주의(68%) · 임박(94%) · 소진(100%).
+세로 세 줄은 메뉴바 배경입니다 — 색이 있는 배경 · 어두운 배경 · 밝은 배경.
+설명용으로 다시 그린 그림이 아니라, 이 태그의 아이콘 소스를 그대로 꺼내 컴파일해 그린 것입니다.</sub>
+
+## 설치
+
+\`\`\`sh
+brew tap kube-guy/kit
+brew trust --formula kube-guy/kit/ai-usage-bar
+brew install ai-usage-bar
+brew services start ai-usage-bar
+\`\`\`
+
+이 버전을 지정해 설치하려면 (최신이 아니어도 됩니다):
+
+\`\`\`sh
+"\$(brew --repo kube-guy/kit)"/install-version.sh ai-usage-bar ${VERSION}
+"\$(brew --repo kube-guy/kit)"/install-version.sh ai-usage-bar latest   # 되돌리기
+\`\`\`
+
+버전별 모습을 한자리에 모아둔 곳: [릴리스별 모습](https://github.com/kube-guy/ai-usage-bar/blob/main/docs/releases/README.md)
+MD
+  } > "$NOTES"
+  gh release create "v${VERSION}" --title "v${VERSION}" --notes-file "$NOTES" --latest \
+    "docs/releases/v${VERSION}.png"
+  rm -f "$NOTES"
+  echo "릴리스 본문에 제목과 설명을 채워 넣으세요: gh release edit v${VERSION}"
+else
+  echo "gh 가 없어 GitHub 릴리스는 건너뜁니다." >&2
+fi
+
 echo
 echo "완료. 확인:"
 echo "  brew update && brew upgrade ai-usage-bar"
