@@ -2,14 +2,16 @@ import AppKit
 
 /// 메뉴바용 이중 링 아이콘.
 ///
-/// - 바깥 링(얇고 옅음) : 주간 한도 사용률
-/// - 안쪽 링(굵고 진함) : 현재 5시간 창이 얼마나 지났는지
+/// - 바깥 링 : 주간 한도 사용률
+/// - 안쪽 링 : 현재 5시간 창이 얼마나 지났는지
 /// - 가운데 글자        : 서비스 구분. 세션 사용률이 높을 때만 색이 붙는다
 ///
 /// 설계 원칙은 "평소엔 무채색, 바빠질 때만 색"이다. 여유로울 때까지 초록을 칠하면
 /// 메뉴바가 늘 시끄럽고, 정작 경고가 눈에 띄지 않는다. 색이 나타나는 것 자체가 신호다.
 ///
-/// 두 링은 색 대신 굵기와 농도로 구분한다. 색은 경고 전용으로 남겨둔다.
+/// 두 링은 색 대신 굵기와 농도로 구분한다(안쪽이 조금 더 굵고 진하다).
+/// 색은 경고 전용으로 남겨둔다. 바깥 링은 처음에 더 얇고 옅었는데
+/// 두 약점이 겹쳐 잘 보이지 않아, 두께와 농도를 함께 올렸다.
 ///
 /// 글자에 외곽선을 두르지 않는 것도 같은 이유다. 예전에는 흰 글자를 고집하느라
 /// 검정 테두리가 필요했는데, 배경에 맞춰 글자색을 뒤집으면 테두리 없이도 읽힌다.
@@ -47,7 +49,7 @@ enum RingIcon {
         let image = NSImage(size: NSSize(width: size, height: size), flipped: false) { _ in
             let center = NSPoint(x: size / 2, y: size / 2)
 
-            let outerWidth = size * 0.052
+            let outerWidth = size * 0.068
             let outerRadius = (size - outerWidth) / 2
             let innerWidth = size * 0.078
             let innerRadius = outerRadius - outerWidth / 2 - size * 0.052 - innerWidth / 2
@@ -57,7 +59,7 @@ enum RingIcon {
 
             arc(
                 center: center, radius: outerRadius, fraction: min(max(weeklyPct, 0), 100) / 100,
-                width: outerWidth, color: mono(isDark, 0.55))
+                width: outerWidth, color: mono(isDark, 0.82))
             if let elapsed {
                 arc(
                     center: center, radius: innerRadius, fraction: elapsed,
