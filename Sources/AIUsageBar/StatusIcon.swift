@@ -12,8 +12,8 @@ import AppKit
 /// 정보 성격에 따라 형태를 나눴다. 시간은 돌아오니 원, 한도는 쓰면 줄어드니 막대다.
 /// 같은 형태를 크기만 달리해 여러 개 놓으면 무엇이 무엇인지 매번 되짚게 된다.
 ///
-/// 막대는 메뉴에 나오는 막대와 똑같이 **쓴 만큼** 채운다. 두 곳이 다른 값을 그리면
-/// 메뉴를 열 때마다 어느 쪽이 맞는지 되짚게 된다. 색만 사용량에 따라 바뀐다.
+/// 막대는 배터리처럼 **남은 양**을 칠한다. 쓸수록 줄어들고, 줄면서 색이 바뀐다.
+/// 바탕을 덧칠하거나 채움 색을 바꾸는 장치는 두지 않는다. 남은 만큼만 그리고 색만 바꾼다.
 enum StatusIcon {
     /// 메뉴바 높이(~22pt)를 넘기면 이미지가 축소되어 전부 작아진다. 20 을 넘기지 않는다.
     private static let height: CGFloat = 20
@@ -29,14 +29,14 @@ enum StatusIcon {
         isDark ? NSColor(white: 1, alpha: alpha) : NSColor(white: 0.08, alpha: alpha)
     }
 
-    /// 사용량에 따른 색. 여유로우면 초록, 많이 쓰면 앰버, 거의 다 쓰면 레드.
-    private static func level(used: Double, isDark: Bool) -> NSColor {
-        if used >= 90 {
+    /// 남은 양에 따른 색. 넉넉하면 초록, 줄면 앰버, 얼마 없으면 레드.
+    private static func level(remaining: Double, isDark: Bool) -> NSColor {
+        if remaining <= 10 {
             return isDark
                 ? NSColor(srgbRed: 1.00, green: 0.27, blue: 0.23, alpha: 1)
                 : NSColor(srgbRed: 0.72, green: 0.07, blue: 0.07, alpha: 1)
         }
-        if used >= 61 {
+        if remaining <= 39 {
             return isDark
                 ? NSColor(srgbRed: 1.00, green: 0.80, blue: 0.30, alpha: 1)
                 : NSColor(srgbRed: 0.76, green: 0.50, blue: 0.03, alpha: 1)
@@ -126,20 +126,20 @@ enum StatusIcon {
     }
 
     private static func drawBar(x: CGFloat, y: CGFloat, used: Double, isDark: Bool) {
-        let fraction = min(max(used, 0), 100) / 100
+        let remaining = 100 - min(max(used, 0), 100)
         let frame = NSRect(x: x, y: y, width: barWidth, height: barHeight)
 
         NSBezierPath(roundedRect: frame, xRadius: barHeight / 2, yRadius: barHeight / 2)
             .fill(with: mono(isDark, 0.22))
 
-        let filled = barWidth * CGFloat(fraction)
+        let filled = barWidth * CGFloat(remaining / 100)
         guard filled > 0.3 else { return }
 
         // 채움을 둥근 캡슐로 그리면 눈이 둥근 끝을 뺀 '몸통'을 비교해 실제보다 적어 보인다.
         // 트랙 모양으로 잘라내고 사각형을 채우면 보이는 길이가 값과 일치한다.
         NSGraphicsContext.saveGraphicsState()
         NSBezierPath(roundedRect: frame, xRadius: barHeight / 2, yRadius: barHeight / 2).addClip()
-        level(used: used, isDark: isDark).set()
+        level(remaining: remaining, isDark: isDark).set()
         NSRect(x: x, y: y, width: filled, height: barHeight).fill()
         NSGraphicsContext.restoreGraphicsState()
     }
