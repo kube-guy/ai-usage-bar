@@ -151,8 +151,14 @@ enum StatusIcon {
         let remaining = 100 - min(max(used, 0), 100)
         let frame = NSRect(x: x, y: y, width: barWidth, height: barHeight)
 
+        // 다 쓰면 칠할 게 없어 막대가 빈 회색으로 남는다. 가장 위험한 순간에 신호가
+        // 사라지므로, 그때는 빈 트랙 자체를 빨갛게 둔다. 채우지 않고 색만 바꾸는 것이다.
+        let trackColor =
+            remaining <= 0
+            ? level(remaining: 0, isDark: isDark).withAlphaComponent(isDark ? 0.72 : 0.62)
+            : mono(isDark, 0.22)
         NSBezierPath(roundedRect: frame, xRadius: barHeight / 2, yRadius: barHeight / 2)
-            .fill(with: mono(isDark, 0.22))
+            .fill(with: trackColor)
 
         guard remaining > 0 else { return }
         // 조금이라도 남아 있으면 반드시 보이게 한다. 그냥 비율대로 그리면 2% 남았을 때
