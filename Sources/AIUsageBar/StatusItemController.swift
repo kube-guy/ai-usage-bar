@@ -80,14 +80,16 @@ final class StatusItemController {
     private func apply(_ result: UsageResult) {
         guard let button = statusItem.button else { return }
         lastResult = result
-        button.image = RingIcon.make(
+        button.image = StatusIcon.make(
+            letter: provider.letter,
             sessionPct: result.sessionPercent,
             weeklyPct: result.weeklyPercent,
-            elapsed: result.sessionElapsed,
-            letter: provider.letter,
+            sessionElapsed: result.sessionElapsed,
+            weeklyElapsed: result.weeklyElapsed,
             isDark: isDarkMenuBar)
-        button.imagePosition = .imageLeading
-        button.title = " \(Format.percent(result.sessionPercent))"
+        // 수치는 아이콘이 모두 담는다. 숫자를 덧붙이면 같은 정보가 두 번 나온다.
+        button.imagePosition = .imageOnly
+        button.title = ""
 
         let menu = NSMenu()
         for row in result.rows { menu.addItem(item(for: row)) }
@@ -102,6 +104,7 @@ final class StatusItemController {
         // 직전 사용률 링이 ⚠️ 옆에 남지 않도록 아이콘을 지운다.
         button.image = nil
         lastResult = nil
+        button.imagePosition = .noImage
         button.title = "\(provider.letter) ⚠️"
 
         let menu = NSMenu()

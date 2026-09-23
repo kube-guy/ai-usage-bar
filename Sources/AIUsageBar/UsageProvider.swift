@@ -25,6 +25,8 @@ struct UsageResult {
     let sessionPercent: Double
     /// 주간 한도 사용률 0~100. 바깥 링에 쓴다.
     let weeklyPercent: Double
+    /// 주간 창이 얼마나 지났는지 0~1. 창 길이를 알 수 없으면 nil.
+    let weeklyElapsed: Double?
     /// 현재 세션 창이 얼마나 지났는지 0~1. 창 길이를 알 수 없으면 nil.
     /// 안쪽 링(사용률)과 같은 방향으로 차오르도록 '남은' 이 아니라 '지난' 비율이다.
     let sessionElapsed: Double?

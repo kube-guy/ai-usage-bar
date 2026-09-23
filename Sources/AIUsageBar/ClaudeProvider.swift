@@ -188,6 +188,8 @@ struct ClaudeProvider: UsageProvider {
         return UsageResult(
             sessionPercent: sessionPct,
             weeklyPercent: weeklyPct,
+            weeklyElapsed: elapsedFraction(
+                resetsAt: ISODate.parse(sevenDay.string("resets_at")), windowSeconds: 7 * 24 * 3600),
             sessionElapsed: elapsedFraction(resetsAt: resetsAt, windowSeconds: sessionWindowSeconds),
             rows: rows)
     }
