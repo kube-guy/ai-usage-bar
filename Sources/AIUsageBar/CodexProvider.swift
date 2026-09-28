@@ -73,10 +73,10 @@ struct CodexProvider: UsageProvider {
             .text("한도"),
             .gauge(
                 label: "5시간 세션", usedPct: sessionPct,
-                resets: Format.reset(date(primary["reset_at"]))),
+                resetsAt: date(primary["reset_at"])),
             .gauge(
                 label: "주간 (7일)", usedPct: weeklyPct,
-                resets: Format.reset(date(secondary["reset_at"]))),
+                resetsAt: date(secondary["reset_at"])),
         ]
 
         let credits = data.dict("credits")

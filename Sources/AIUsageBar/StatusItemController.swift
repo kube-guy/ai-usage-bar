@@ -93,8 +93,8 @@ final class StatusItemController {
 
         let menu = NSMenu()
         for row in result.rows {
-            if case .gauge(let label, let usedPct, let resets) = row {
-                gaugeItems(label: label, usedPct: usedPct, resets: resets).forEach(menu.addItem)
+            if case .gauge(let label, let usedPct, let resetsAt) = row {
+                gaugeItems(label: label, usedPct: usedPct, resetsAt: resetsAt).forEach(menu.addItem)
             } else {
                 menu.addItem(item(for: row))
             }
@@ -127,7 +127,7 @@ final class StatusItemController {
 
     /// 한도 한 줄을 세 개의 메뉴 항목으로 펼친다. NSMenuItem 은 한 줄짜리라
     /// TokenDock 처럼 "값 / 막대 / 리셋"을 쌓으려면 항목을 나눠야 한다.
-    private func gaugeItems(label: String, usedPct: Double, resets: String) -> [NSMenuItem] {
+    private func gaugeItems(label: String, usedPct: Double, resetsAt: Date?) -> [NSMenuItem] {
         let used = min(max(usedPct, 0), 100)
         let remaining = 100 - used
         let tint = StatusIcon.levelColor(remaining: remaining)
@@ -167,12 +167,18 @@ final class StatusItemController {
                 .foregroundColor: NSColor.tertiaryLabelColor,
             ]))
 
-        let reset = NSAttributedString(
-            string: "  ↻ \(resets) 리셋",
-            attributes: [
-                .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
-                .foregroundColor: NSColor.secondaryLabelColor,
-            ])
+        // 남은 시간만 있으면 몇 시에 풀리는지 매번 셈해야 한다. 실제 시각을 옆에 붙인다.
+        let resetAttributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
+            .foregroundColor: NSColor.secondaryLabelColor,
+        ]
+        let reset = NSMutableAttributedString(
+            string: "  ↻ \(Format.resetRemaining(resetsAt)) 리셋",
+            attributes: resetAttributes)
+        let clock = Format.resetClock(resetsAt)
+        if !clock.isEmpty {
+            reset.append(NSAttributedString(string: "  ·  \(clock)", attributes: resetAttributes))
+        }
 
         return [headline, bar, reset].map { attributed in
             let item = NSMenuItem(title: attributed.string, action: nil, keyEquivalent: "")

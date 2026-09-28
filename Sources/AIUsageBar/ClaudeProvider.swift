@@ -159,10 +159,10 @@ struct ClaudeProvider: UsageProvider {
             .text("한도"),
             .gauge(
                 label: "5시간 세션", usedPct: sessionPct,
-                resets: Format.reset(ISODate.parse(fiveHour.string("resets_at")))),
+                resetsAt: ISODate.parse(fiveHour.string("resets_at"))),
             .gauge(
                 label: "주간 (7일)", usedPct: weeklyPct,
-                resets: Format.reset(ISODate.parse(sevenDay.string("resets_at")))),
+                resetsAt: ISODate.parse(sevenDay.string("resets_at"))),
             .separator,
             .text("Models this month:"),
         ]

@@ -15,24 +15,45 @@ enum Format {
         String(format: "%.0f%%", pct)
     }
 
-    private static let weekdayFormatter: DateFormatter = {
+    private static func koreanFormatter(_ format: String) -> DateFormatter {
         let f = DateFormatter()
         f.locale = Locale(identifier: "ko_KR")
-        f.dateFormat = "E HH:mm"
+        f.dateFormat = format
         return f
-    }()
+    }
 
-    /// `2시간 10분 후` / `토 06:00` 형태의 리셋 시각.
-    static func reset(_ date: Date?) -> String {
+    private static let clockFormatter = koreanFormatter("HH:mm")
+    private static let weekdayFormatter = koreanFormatter("E HH:mm")
+    private static let dayFormatter = koreanFormatter("M/d HH:mm")
+
+    /// `26분 후` / `2시간 10분 후` / `3일 19시간 후` — 리셋까지 남은 시간.
+    static func resetRemaining(_ date: Date?) -> String {
         guard let date else { return "알 수 없음" }
         let delta = date.timeIntervalSinceNow
-        if delta <= 0 { return "곧" }
-        if delta < 12 * 3600 {
-            let minutes = Int(delta / 60)
-            let (h, m) = (minutes / 60, minutes % 60)
-            return h > 0 ? "\(h)시간 \(m)분 후" : "\(m)분 후"
+        if delta < 60 { return "곧" }
+        let minutes = Int(delta / 60)
+        let (hours, m) = (minutes / 60, minutes % 60)
+        if hours < 24 {
+            return hours > 0 ? "\(hours)시간 \(m)분 후" : "\(m)분 후"
         }
-        return weekdayFormatter.string(from: date)
+        let (days, h) = (hours / 24, hours % 24)
+        return h > 0 ? "\(days)일 \(h)시간 후" : "\(days)일 후"
+    }
+
+    /// `오늘 12:36` / `내일 07:00` / `화 07:00` / `10/5 07:00` — 리셋되는 실제 시각.
+    /// 남은 시간만으로는 "몇 시에 풀리나"를 셈해야 하므로 옆에 함께 적는다.
+    static func resetClock(_ date: Date?) -> String {
+        // 이미 지난 시각을 옆에 적으면 오히려 헷갈린다. 그때는 '곧' 만 남긴다.
+        guard let date, date.timeIntervalSinceNow > 0 else { return "" }
+        let calendar = Calendar.current
+        if calendar.isDateInToday(date) { return "오늘 " + clockFormatter.string(from: date) }
+        if calendar.isDateInTomorrow(date) { return "내일 " + clockFormatter.string(from: date) }
+        // 요일만 적으면 8일 뒤와 헷갈리므로 한 주를 넘어가면 날짜로 적는다.
+        let days = calendar.dateComponents(
+            [.day],
+            from: calendar.startOfDay(for: Date()),
+            to: calendar.startOfDay(for: date)).day ?? 0
+        return days < 7 ? weekdayFormatter.string(from: date) : dayFormatter.string(from: date)
     }
 
     static func monthLabel(_ date: Date = Date()) -> String {

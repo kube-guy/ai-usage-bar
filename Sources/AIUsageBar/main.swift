@@ -77,14 +77,16 @@ if dump {
                 switch row {
                 case .separator: print("")
                 case .text(let line), .mono(let line): print(line)
-                case .gauge(let label, let used, let resets):
+                case .gauge(let label, let used, let resetsAt):
                     let remaining = 100 - min(max(used, 0), 100)
                     let width = 22
                     let filled = Int((Double(width) * min(max(used, 0), 100) / 100).rounded())
                     print("  \(label)   \(Format.percent(remaining)) 남음  ·  \(Format.percent(used)) 사용")
                     print("  " + String(repeating: "█", count: filled)
                         + String(repeating: "░", count: width - filled))
-                    print("  ↻ \(resets) 리셋")
+                    let clock = Format.resetClock(resetsAt)
+                    print("  ↻ \(Format.resetRemaining(resetsAt)) 리셋"
+                        + (clock.isEmpty ? "" : "  ·  \(clock)"))
                 }
             }
         } catch {
