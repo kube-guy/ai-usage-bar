@@ -18,6 +18,13 @@ struct ClaudeProvider: UsageProvider {
     /// 항상 이 순서/이름으로 고정 표시 (데이터가 없으면 0으로 표시)
     private let modelFamilies = ["opus", "sonnet", "haiku"]
 
+    /// usage 엔드포인트는 1분마다 부르면 429 (`Retry-After: 3600`) 로 막힌다.
+    /// 한도 수치는 이 간격으로만 새로 받고, 로컬 통계는 매 갱신마다 다시 센다.
+    private let usageMinInterval: TimeInterval = 5 * 60
+    /// 프로세스가 살아 있는 동안 API 응답을 들고 있는다. 갱신은 provider 의 전용 큐에서
+    /// 일어나지만 --dump 등 다른 경로도 있으니 잠금을 둔다.
+    private let cache = APICache()
+
     private let expiredMessage = "토큰이 만료되었습니다. 터미널에서 `claude`를 실행해 갱신해주세요."
 
     // MARK: - 인증
@@ -67,14 +74,74 @@ struct ClaudeProvider: UsageProvider {
             url: profileURL, headers: headers(token), unauthorizedMessage: expiredMessage
         ) else { return "알 수 없음" }
 
-        for key in ["plan", "planName", "subscriptionType", "tier"] {
-            if let value = data.string(key), !value.isEmpty { return value.capitalized }
+        // organization_type: "claude_max" / "claude_pro" …
+        // rate_limit_tier:   "default_claude_max_5x" 처럼 배수까지 들어 있다.
+        let organization = data.dict("organization")
+        let type = organization.string("organization_type") ?? ""
+        guard type.hasPrefix("claude_") else { return "알 수 없음" }
+        var plan = String(type.dropFirst("claude_".count)).capitalized
+        if let tier = organization.string("rate_limit_tier"),
+           let multiplier = tier.split(separator: "_").last, multiplier.hasSuffix("x"),
+           Int(multiplier.dropLast()) != nil {
+            plan += " \(multiplier)"
         }
-        let account = data.dict("account")
-        for key in ["plan", "planName", "subscriptionType"] {
-            if let value = account.string(key), !value.isEmpty { return value.capitalized }
+        return plan
+    }
+
+    private final class APICache {
+        let lock = NSLock()
+        var usage: [String: Any]?
+        var usageFetchedAt: Date?
+        /// 429 의 Retry-After 가 가리키는 시각. 그 전에는 usage 를 부르지 않는다.
+        var blockedUntil: Date?
+        var plan: String?
+    }
+
+    /// 한도 수치를 돌려준다. 간격이 안 됐거나 429 로 막혀 있으면 직전 응답을 쓴다.
+    /// 두 번째 값은 직전 응답을 쓴 경우 그 응답을 받은 시각.
+    private func usage(_ token: String) throws -> ([String: Any], staleSince: Date?) {
+        cache.lock.lock()
+        defer { cache.lock.unlock() }
+        let now = Date()
+
+        if let cached = cache.usage, let fetchedAt = cache.usageFetchedAt {
+            let blocked = cache.blockedUntil.map { now < $0 } ?? false
+            if blocked || now.timeIntervalSince(fetchedAt) < usageMinInterval {
+                return (cached, blocked ? fetchedAt : nil)
+            }
+        } else if let until = cache.blockedUntil, now < until {
+            throw RateLimitError(retryAt: until)
         }
-        return "알 수 없음"
+
+        do {
+            let fresh = try HTTP.getJSON(
+                url: usageURL, headers: headers(token), unauthorizedMessage: expiredMessage)
+            cache.usage = fresh
+            cache.usageFetchedAt = now
+            cache.blockedUntil = nil
+            return (fresh, nil)
+        } catch let error as RateLimitError {
+            // Retry-After 가 없으면 최소 간격만큼은 쉰다.
+            cache.blockedUntil = error.retryAt ?? now.addingTimeInterval(usageMinInterval)
+            guard let cached = cache.usage, let fetchedAt = cache.usageFetchedAt else { throw error }
+            return (cached, fetchedAt)
+        }
+    }
+
+    /// 플랜은 거의 바뀌지 않으니 한 번 알아내면 계속 쓴다. 실패했을 때만 다음 갱신에 다시 묻는다.
+    private func cachedPlanName(_ token: String) -> String {
+        cache.lock.lock()
+        defer { cache.lock.unlock() }
+        if let plan = cache.plan { return plan }
+        let plan = planName(token)
+        if plan != "알 수 없음" { cache.plan = plan }
+        return plan
+    }
+
+    /// 창이 이미 리셋됐다면 직전 응답의 사용률은 0 으로 본다.
+    private func utilization(_ window: [String: Any]) -> Double {
+        if let resetsAt = ISODate.parse(window.string("resets_at")), resetsAt <= Date() { return 0 }
+        return window.double("utilization")
     }
 
     // MARK: - 로컬 JSONL 통계
@@ -140,23 +207,22 @@ struct ClaudeProvider: UsageProvider {
 
     func fetch() throws -> UsageResult {
         let token = try accessToken()
-        let usage = try HTTP.getJSON(
-            url: usageURL, headers: headers(token), unauthorizedMessage: expiredMessage
-        )
-        let plan = planName(token)
+        let (usage, staleSince) = try usage(token)
+        let plan = cachedPlanName(token)
         let stats = scanLocalStats()
 
         // usage API 는 리셋 시각만 주고 창 길이는 주지 않는다. 이름 그대로 5시간으로 본다.
         let sessionWindowSeconds: Double = 5 * 3600
         let fiveHour = usage.dict("five_hour")
         let sevenDay = usage.dict("seven_day")
-        let sessionPct = fiveHour.double("utilization")
-        let weeklyPct = sevenDay.double("utilization")
+        let sessionPct = utilization(fiveHour)
+        let weeklyPct = utilization(sevenDay)
 
+        let minutesAgo = staleSince.map { max(Int(Date().timeIntervalSince($0) / 60), 0) }
         var rows: [MenuRow] = [
             .text("Plan: \(plan)"),
             .separator,
-            .text("한도"),
+            .text("한도" + (minutesAgo.map { "  (요청 한도 초과로 \($0)분 전 값)" } ?? "")),
             .gauge(
                 label: "5시간 세션", usedPct: sessionPct,
                 resetsAt: ISODate.parse(fiveHour.string("resets_at"))),

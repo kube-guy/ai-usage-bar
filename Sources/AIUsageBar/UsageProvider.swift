@@ -12,6 +12,14 @@ struct NetworkError: LocalizedError {
     var errorDescription: String? { "네트워크 오류: \(message)" }
 }
 
+/// 엔드포인트가 429 로 호출을 막은 경우. `Retry-After` 가 있으면 그때까지 다시 부르지 않는다.
+struct RateLimitError: LocalizedError {
+    let retryAt: Date?
+    var errorDescription: String? {
+        "요청 한도 초과 (HTTP 429)" + (retryAt.map { " · \(Format.resetClock($0)) 이후 재시도" } ?? "")
+    }
+}
+
 /// 메뉴에 들어가는 한 줄.
 enum MenuRow {
     case text(String)
@@ -90,6 +98,11 @@ enum HTTP {
         }
         if http.statusCode == 401 {
             throw TokenError(message: unauthorizedMessage)
+        }
+        if http.statusCode == 429 {
+            // Retry-After 는 초 단위 정수로 온다 (HTTP-date 형식은 이 API 에서 보지 못했다).
+            let seconds = (http.value(forHTTPHeaderField: "Retry-After")).flatMap(Double.init)
+            throw RateLimitError(retryAt: seconds.map { Date().addingTimeInterval($0) })
         }
         guard (200..<300).contains(http.statusCode) else {
             throw NetworkError(message: "HTTP \(http.statusCode)")
