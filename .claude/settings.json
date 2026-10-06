@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && git config user.name kube-guy && git config user.email 324278276+kube-guy@users.noreply.github.com"
+          }
+        ]
+      }
+    ]
+  }
+}

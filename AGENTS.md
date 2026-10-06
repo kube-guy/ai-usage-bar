@@ -27,6 +27,8 @@ git var GIT_AUTHOR_IDENT   # kube-guy <324278276+kube-guy@users.noreply.github.c
 - 푸시 전에 `git log --format='%an <%ae>'` 로 **전체** 커밋의 작성자를 확인한다.
 - `.git/config` 와 `~/.gitconfig` 의 `[includeIf "gitdir:~/ai-usage-bar/"]` 양쪽에
   같은 신원이 걸려 있다. 하나가 사라져도 나머지가 막아준다.
+- 클라우드 세션(Claude Code on the web, 루틴)은 저장소를 새로 클론하므로 위 설정이 없다.
+  `.claude/settings.json` 의 SessionStart 훅이 세션 시작마다 `.git/config` 에 같은 신원을 넣는다.
 - 공개될 파일에 실명·회사 이메일·개인 이메일을 적지 않는다.
 
 이 파일이 정본이고 `CLAUDE.md` 는 이 파일을 가리키는 심볼릭 링크다.
