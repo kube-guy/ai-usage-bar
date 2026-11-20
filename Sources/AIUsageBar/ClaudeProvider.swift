@@ -24,29 +24,21 @@ struct ClaudeProvider: UsageProvider {
     /// 프로세스가 살아 있는 동안 API 응답을 들고 있는다. 갱신은 provider 의 전용 큐에서
     /// 일어나지만 --dump 등 다른 경로도 있으니 잠금을 둔다.
     private let cache = APICache()
+    /// 토큰 갱신이 안 될 때 `claude` 를 다시 띄우기까지의 간격.
+    private let refreshMinInterval: TimeInterval = 5 * 60
 
     private let expiredMessage = "토큰이 만료되었습니다. 터미널에서 `claude`를 실행해 갱신해주세요."
 
     // MARK: - 인증
 
-    private func accessToken() throws -> String {
+    /// Keychain 에 든 토큰과 만료 시각. 만료 시각을 못 읽으면 nil.
+    private func credentials() throws -> (token: String, expiresAt: Date?) {
         let user = NSUserName()
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/security")
-        process.arguments = ["find-generic-password", "-a", user, "-w", "-s", keychainService]
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = FileHandle.nullDevice
+        let (status, output) = try run(
+            URL(fileURLWithPath: "/usr/bin/security"),
+            ["find-generic-password", "-a", user, "-w", "-s", keychainService])
 
-        do {
-            try process.run()
-        } catch {
-            throw TokenError(message: "security 명령을 실행할 수 없습니다.")
-        }
-        let output = pipe.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-
-        guard process.terminationStatus == 0 else {
+        guard status == 0 else {
             throw TokenError(message: "로그인 정보를 찾을 수 없습니다. 터미널에서 `claude` 실행 후 로그인해주세요.")
         }
         guard
@@ -56,7 +48,89 @@ struct ClaudeProvider: UsageProvider {
         else {
             throw TokenError(message: "Keychain 데이터 형식을 해석할 수 없습니다.")
         }
-        return token
+        // expiresAt 은 밀리초 단위 유닉스 시각이다.
+        let millis = json.dict("claudeAiOauth").double("expiresAt")
+        return (token, millis > 0 ? Date(timeIntervalSince1970: millis / 1000) : nil)
+    }
+
+    /// access token 은 약 8시간이면 만료되고, 갱신은 `claude` 를 실행해야 일어난다.
+    /// 만료됐으면 Claude Code 에 갱신을 맡긴 뒤 Keychain 을 다시 읽는다.
+    /// refresh token 은 쓰면 바뀌므로 이 앱이 직접 갱신하지 않는다 — Claude Code 와 엇갈려 로그아웃될 수 있다.
+    private func accessToken() throws -> String {
+        let current = try credentials()
+        guard let expiresAt = current.expiresAt, expiresAt <= Date().addingTimeInterval(60) else {
+            return current.token
+        }
+        guard refreshViaCLI() else { return current.token }
+        let refreshed = try credentials()
+        log("토큰 갱신 시도: 만료 \(expiresAt) → \(refreshed.expiresAt.map { "\($0)" } ?? "알 수 없음")")
+        return refreshed.token
+    }
+
+    /// 표준 에러로 남긴다. brew services 로 뜨면 로그 파일로 간다.
+    private func log(_ message: String) {
+        FileHandle.standardError.write(Data("[\(Date())] \(message)\n".utf8))
+    }
+
+    /// `claude -p` 로 아주 짧은 요청을 보내 Claude Code 가 토큰을 갱신하게 한다.
+    /// `claude auth status` 는 상태만 읽고 갱신하지 않는다 (실측). 모델을 불러야 갱신이 일어나므로
+    /// 가장 가벼운 모델에 도구·MCP·설정 없이 보내고, 메시지 수 통계가 늘지 않게 세션도 남기지 않는다.
+    /// 실패해도 매 분 다시 띄우지 않도록 시도 간격을 둔다. 실행했으면 true.
+    @discardableResult
+    private func refreshViaCLI() -> Bool {
+        cache.lock.lock()
+        let now = Date()
+        if let last = cache.lastRefreshAttempt, now.timeIntervalSince(last) < refreshMinInterval {
+            cache.lock.unlock()
+            return false
+        }
+        cache.lastRefreshAttempt = now
+        cache.lock.unlock()
+
+        guard let claude = claudeExecutable() else { return false }
+        let arguments = [
+            "-p", "ok", "--model", "haiku", "--no-session-persistence",
+            "--tools", "", "--strict-mcp-config", "--setting-sources", "",
+        ]
+        let result = try? run(claude, arguments, timeout: 60, in: FileManager.default.temporaryDirectory)
+        log("`claude -p` 실행: 종료 코드 \(result.map { "\($0.0)" } ?? "실행 실패")")
+        return result != nil
+    }
+
+    /// launchd 로 뜨면 PATH 가 짧아서 `claude` 를 못 찾는다. 설치 위치를 직접 찾아본다.
+    private func claudeExecutable() -> URL? {
+        let home = NSHomeDirectory()
+        let pathDirs = (ProcessInfo.processInfo.environment["PATH"] ?? "").split(separator: ":").map(String.init)
+        let candidates = ["\(home)/.local/bin", "\(home)/.claude/local", "/opt/homebrew/bin", "/usr/local/bin"] + pathDirs
+        return candidates
+            .map { URL(fileURLWithPath: $0).appendingPathComponent("claude") }
+            .first { FileManager.default.isExecutableFile(atPath: $0.path) }
+    }
+
+    /// 명령을 실행하고 종료 코드와 표준 출력을 돌려준다. 시간을 넘기면 끊는다.
+    private func run(
+        _ executable: URL, _ arguments: [String], timeout: TimeInterval = 10, in directory: URL? = nil
+    ) throws -> (Int32, Data) {
+        let process = Process()
+        process.executableURL = executable
+        process.arguments = arguments
+        if let directory { process.currentDirectoryURL = directory }
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+        process.standardInput = FileHandle.nullDevice
+
+        do {
+            try process.run()
+        } catch {
+            throw TokenError(message: "\(executable.lastPathComponent) 명령을 실행할 수 없습니다.")
+        }
+        let timer = DispatchWorkItem { if process.isRunning { process.terminate() } }
+        DispatchQueue.global().asyncAfter(deadline: .now() + timeout, execute: timer)
+        let output = pipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        timer.cancel()
+        return (process.terminationStatus, output)
     }
 
     private func headers(_ token: String) -> [String: String] {
@@ -95,6 +169,19 @@ struct ClaudeProvider: UsageProvider {
         /// 429 의 Retry-After 가 가리키는 시각. 그 전에는 usage 를 부르지 않는다.
         var blockedUntil: Date?
         var plan: String?
+        /// 수동 새로고침 직후 한 번은 간격과 429 대기를 무시하고 바로 부른다.
+        var forceNext = false
+        /// 마지막으로 `claude` 에 토큰 갱신을 맡긴 시각.
+        var lastRefreshAttempt: Date?
+    }
+
+    /// 직전 응답은 지우지 않는다. 다시 429 를 받아도 그 값을 보여줄 수 있어야 한다.
+    /// 다시 로그인하면 계정이 바뀌었을 수 있으니 플랜도 새로 묻는다.
+    func invalidateCache() {
+        cache.lock.lock()
+        defer { cache.lock.unlock() }
+        cache.forceNext = true
+        cache.plan = nil
     }
 
     /// 한도 수치를 돌려준다. 간격이 안 됐거나 429 로 막혀 있으면 직전 응답을 쓴다.
@@ -103,8 +190,12 @@ struct ClaudeProvider: UsageProvider {
         cache.lock.lock()
         defer { cache.lock.unlock() }
         let now = Date()
+        let force = cache.forceNext
+        cache.forceNext = false
 
-        if let cached = cache.usage, let fetchedAt = cache.usageFetchedAt {
+        if force {
+            // 아래에서 바로 부른다.
+        } else if let cached = cache.usage, let fetchedAt = cache.usageFetchedAt {
             let blocked = cache.blockedUntil.map { now < $0 } ?? false
             if blocked || now.timeIntervalSince(fetchedAt) < usageMinInterval {
                 return (cached, blocked ? fetchedAt : nil)
@@ -206,8 +297,16 @@ struct ClaudeProvider: UsageProvider {
     // MARK: - 조합
 
     func fetch() throws -> UsageResult {
-        let token = try accessToken()
-        let (usage, staleSince) = try usage(token)
+        var token = try accessToken()
+        let usage: [String: Any], staleSince: Date?
+        do {
+            (usage, staleSince) = try self.usage(token)
+        } catch is TokenError {
+            // 만료 시각 전에 401 이 올 수도 있다 (다른 기기에서 다시 로그인 등). 한 번만 갱신해 본다.
+            guard refreshViaCLI() else { throw TokenError(message: expiredMessage) }
+            token = try credentials().token
+            (usage, staleSince) = try self.usage(token)
+        }
         let plan = cachedPlanName(token)
         let stats = scanLocalStats()
 

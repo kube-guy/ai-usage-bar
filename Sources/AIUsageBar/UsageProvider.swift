@@ -60,6 +60,12 @@ protocol UsageProvider {
     var name: String { get }
     /// 네트워크와 디스크를 모두 건드리므로 백그라운드 큐에서 호출된다.
     func fetch() throws -> UsageResult
+    /// 사용자가 직접 새로고침을 눌렀을 때 다음 `fetch()` 가 캐시를 건너뛰게 한다.
+    func invalidateCache()
+}
+
+extension UsageProvider {
+    func invalidateCache() {}
 }
 
 // MARK: - 공통 HTTP

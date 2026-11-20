@@ -56,7 +56,9 @@ final class StatusItemController {
         return appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
     }
 
+    /// 타이머 갱신과 달리 캐시와 429 대기를 건너뛰고 바로 다시 받는다.
     @objc private func manualRefresh() {
+        queue.async { [weak self] in self?.provider.invalidateCache() }
         refresh()
     }
 
